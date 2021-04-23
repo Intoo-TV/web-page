@@ -8,43 +8,68 @@ const TRACKER_SERVER_PORT = 8700;
 const PLATFORM_THETA_WALLET_SERVICE_URL = "wss://api-wallet-service.thetatoken.org/theta/ws";
 
 const VIDEO_ID = 'vid123';
-
-const VIDEO_URL = "https://bitdash-a.akamaihd.net/content/MI201109210084_1/m3u8s/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.m3u8"
-
+let VIDEO_URL='';
+// const VIDEO_URL = "https://bitdash-a.akamaihd.net/content/MI201109210084_1/m3u8s/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.m3u8";
 // --------- Guest User Helpers ------------
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+const experienceID = urlParams.get('experienceID');
+const authToken = urlParams.get('token');
+let title = '';
+let description = '';
+let guestID = '';
 
 
-function generateGuestUserIdIfNeeded() {
-    let guestUserId = localStorage.getItem("THETA_EXAMPLE_GUEST_USER_ID");
-    if (guestUserId === null) {
-        var guestID = "" + (new Date().getTime());
-        localStorage.setItem("THETA_EXAMPLE_GUEST_USER_ID", guestID);
-    }
-}
+async function getExpData() {
+    let headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+    };
 
-function getGuestUserId() {
-    return localStorage.getItem("THETA_EXAMPLE_GUEST_USER_ID")
-}
+    const options = {
+        method: 'GET',
+        headers: headers
+    };
+
+    let streamUrl = `https://api.intoo.tv/api/experience/${experienceID}/stream`;
+    let response = await fetch(streamUrl, options);
+    let responseData = await response.json();
+    console.log(responseData);
+    VIDEO_URL = responseData.stream.streamUrl;
+
+    let getByIDURl = `https://api.intoo.tv/api/experience/${experienceID}`;
+    response = await fetch(getByIDURl, options);
+    responseData = await response.json();
+    console.log(responseData);
+
+    console.log(responseData.url);
+    response = await fetch(responseData.url, {});
+    responseData = await response.json();
+
+    console.log(responseData);
+    title = responseData.title;
+    description = responseData.description;
+};
+
 
 async function fetchVaultAuthToken() {
-    // let headers = {
-    //     'Accept': 'application/json',
-    //     'Content-Type': 'application/json',
-    // };
+    let headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+    };
 
-    // const options = {
-    //     method: 'GET',
-    //     headers: headers
-    // };
+    const options = {
+        method: 'GET',
+        headers: headers
+    };
 
-    // let url = "https://api.intoo.tv/api/user/thetaauth";
-    // let response = await fetch(url, options);
-    // let responseData = await response.json();
-    // let body = responseData["body"];
-    // let accessToken = body["access_token"];
-    const accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfa2V5IjoiOXJmZnU2bnNnaXF2ZDEzZXVzaWhhMncwaW1qZW1hcjhyZGpqNWEwd254MWEiLCJ1c2VyX2lkIjoiNjA3ZWQ2MjU1MTAxMjQ4ODUzZTk0Zjk3IiwiaXNzIjoiYXV0aDAiLCJleHAiOjE2MTkwODI2NjMuMDMxLCJpYXQiOjE2MTkwNzgzNDN9.GV7cvb207XC94vSxM54FXkrddIMEUOEzFV4fDn30j8Y';
+    let url = "https://api.intoo.tv/api/user/thetaauth";
+    let response = await fetch(url, options);
+    let responseData = await response.json();
 
-    return accessToken;
+    return responseData.accessToken;
 }
 
 // --------- Platform Theta Wallet ------------
@@ -122,7 +147,6 @@ function startVideo(theta) {
 }
 
 function startPlayer() {
-    let userId = getGuestUserId();
     let walletProvider = new PlatformThetaWalletWebSocketProvider({
         url: PLATFORM_THETA_WALLET_SERVICE_URL,
     });
@@ -142,7 +166,7 @@ function startPlayer() {
         peerReqInterval: 120000,
 
         videoId: VIDEO_ID,
-        userId: userId,
+        userId: guestID,
         wallet: wallet,
 
         peerServer: {
@@ -199,12 +223,15 @@ function startPlayer() {
 }
 
 function startApp() {
-    generateGuestUserIdIfNeeded();
-    startPlayer();
+    getExpData()
+        .then(() => {
+            startPlayer();
 
-    // Optional - Setup Theta Web Widgets
-    var widget = new ThetaWebWidgets.OverviewWithTrafficChartWidget();
-    widget.setTheme(ThetaWebWidgets.Themes.Dark);
-    widget.setMainMessage("XCabin.");
-    widget.render("SAMPLE_THETA_WEB_WIDGET_PLACEHOLDER");
+            // Optional - Setup Theta Web Widgets
+            var widget = new ThetaWebWidgets.OverviewWithTrafficChartWidget();
+            console.log(widget);
+            widget.setTheme(ThetaWebWidgets.Themes.Dark);
+            widget.setMainMessage(title);
+            widget.render("SAMPLE_THETA_WEB_WIDGET_PLACEHOLDER");
+        });
 }
